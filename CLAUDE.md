@@ -23,11 +23,15 @@
 | `si` | Auth, permissões, dados sensíveis, vulnerabilidades |
 | `dados` | Pipelines, analytics, relatórios |
 | `ux` | Fluxos, usabilidade, feedback ao usuário |
+| `devops` | Deploy, infra, servidor, variáveis de ambiente, CI/CD |
+| `qa` | Estratégia de testes, escrita de unitários, integração e E2E |
 
 ## Gates obrigatórios
 
 - `dba` → sempre passa por `reviewer` antes de continuar
 - Qualquer mudança em auth/permissões → passa por `si` antes do `backend`
+- Subtasks que vão pra prod → `devops` confirma rollback antes de executar
+- Critério de aceite de qualquer subtask crítica → `qa` cobre com testes antes de fechar
 
 ## Atualizar os agentes
 
