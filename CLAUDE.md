@@ -1,46 +1,22 @@
-# Ecossistema de Agentes
+# agentes-wesley — kit gerador de agentes
 
-## Como usar
+Este repo **não é instalado** nos projetos. Ele guarda templates e um gerador (`gerar-agentes.md`) que, rodado dentro de um projeto, escreve agentes específicos para aquele projeto em `.claude/` dele. Depois de gerados, os agentes não dependem deste repo.
 
-**Projeto novo:**
-1. Copie (ou clone) a pasta `.claude/` para a raiz do projeto
-2. Rode `/bootstrap` — ele lê o projeto e gera o `CLAUDE.md` com contexto
-3. Comece com `/techlead` passando a task
+## Estrutura
+- `gerar-agentes.md` — o prompt do gerador (modos geração e atualização).
+- `templates/agents/*.md` — um template por agente.
+- `templates/techlead.md` — vira `.claude/commands/techlead.md` no projeto.
+- `templates/hooks/*.js` — guards copiados sem alteração para `.claude/hooks/` do projeto.
+- `templates/CLAUDE.md` — modelo do `CLAUDE.md` da raiz do projeto.
 
-**Projeto já configurado:**
-- Use `/techlead` para qualquer task nova
-- Os agentes especializados são chamados pelo Tech Lead
+## Convenção dos templates
+- **Frontmatter**: `name`, `tools`, `model`, `hooks` etc. são copiados exatamente pelo gerador; só a `description` é especializada.
+- **Corpo universal** (tudo antes de `## Neste projeto`): igual em todo projeto e reaplicado nas atualizações. Só coloque aqui o que vale para qualquer stack.
+- **`## Neste projeto`**: entre `<!-- PROJETO:INICIO … -->` e `<!-- PROJETO:FIM -->`, com um `<!-- Preencher com: … -->` dizendo ao gerador o que levantar. Os marcadores são o contrato com o modo de atualização: não mude o texto deles.
+- Texto em pt-BR. Hooks em Node, sem dependências.
 
-## Agentes disponíveis
-
-| Agente | Quando usar |
-|---|---|
-| `techlead` | Ponto de entrada para qualquer task. Decompõe e delega. |
-| `backend` | APIs, lógica de negócio, integrações |
-| `frontend` | Componentes, estado, integração com API |
-| `dba` | Schema, migrations, queries |
-| `reviewer` | Gate de qualidade entre fases |
-| `si` | Auth, permissões, dados sensíveis, vulnerabilidades |
-| `dados` | Pipelines, analytics, relatórios |
-| `ux` | Fluxos, usabilidade, feedback ao usuário |
-| `devops` | Deploy, infra, servidor, variáveis de ambiente, CI/CD |
-| `qa` | Estratégia de testes, escrita de unitários, integração e E2E |
-
-## Gates obrigatórios
-
-- `dba` → sempre passa por `reviewer` antes de continuar
-- Qualquer mudança em auth/permissões → passa por `si` antes do `backend`
-- Subtasks que vão pra prod → `devops` confirma rollback antes de executar
-- Critério de aceite de qualquer subtask crítica → `qa` cobre com testes antes de fechar
-
-## Atualizar os agentes
-
-Este `.claude/` é um repositório git. Para puxar melhorias:
-```bash
-cd .claude && git pull
-```
-
----
-
-<!-- Este arquivo é o template. Quando o /bootstrap rodar, ele gera um CLAUDE.md
-     com o contexto real do projeto, substituindo ou complementando este. -->
+## Ao mudar algo
+- Template novo: siga a convenção acima e acrescente a regra de "gere quando" na Etapa 3 do `gerar-agentes.md`.
+- Hook novo ou alterado: teste com JSON na entrada padrão (`echo '{"tool_name":"Bash","tool_input":{"command":"..."}}' | node templates/hooks/x.js; echo $?` — 2 bloqueia, 0 libera).
+- Para testar o gerador de verdade, rode-o numa **cópia** de um projeto (nunca no projeto original) e confira os arquivos gerados.
+- Mudanças relevantes devem constar no README.
