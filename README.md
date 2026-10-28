@@ -1,193 +1,237 @@
-# Ecossistema de Agentes para Claude Code
+# Kit gerador de agentes para Claude Code
 
-Um ecossistema multi-agente portátil e versionado com git, construído sobre o [Claude Code](https://claude.ai/code). Cole numa pasta de qualquer projeto e tenha um time de IA estruturado — do planejamento ao deploy — que você atualiza em todos os projetos com um único `git pull`.
+Um gerador que cria um **time de agentes do Claude Code sob medida para cada projeto**, a partir de templates versionados aqui. Você roda o gerador dentro do projeto; ele lê o código, entende a stack e escreve os agentes já com o contexto daquele projeto: diretórios, comandos, padrões de teste, armadilhas.
 
-## Motivação
+Os agentes gerados ficam **dentro do projeto** (`.claude/`), são versionados pelo git do projeto e não dependem deste repo depois de prontos.
 
-Experimentei setups multi-agente no trabalho e percebi que os maiores ganhos vieram de duas coisas: um agente Tech Lead que escreve as tasks com detalhe suficiente para modelos menores executarem sem ambiguidade, e gates de revisão obrigatórios entre as fases. Esse template formaliza esse padrão numa estrutura portátil.
+## Por que gerar em vez de copiar agentes genéricos
 
-## Como funciona
+Agente genérico lendo um arquivo de contexto continua pensando de forma genérica. Os agentes que funcionam bem têm o conhecimento do projeto **escrito neles**: o revisor sabe qual configuração do compilador está desligada, o test-writer sabe qual teste copiar e qual comando roda um único spec. O gerador junta as duas coisas:
 
-```
-Você → /techlead "implementar X"
-           ↓
-      lê o CLAUDE.md (contexto do projeto)
-      decompõe em subtasks
-      atribui agentes + define gates de revisão
-           ↓
-      backend / frontend / dba / qa / devops / ...
-           ↓
-      reviewer / si (gates obrigatórios)
-           ↓
-      de volta pra você: concluído ou bloqueado com motivo
-```
+- **Template (igual em todo projeto):** fluxo de trabalho, gates, formato de resposta, rigor do revisor, permissões e guards.
+- **Seção `Neste projeto` (gerada):** stack, diretórios, comandos, padrões e armadilhas daquele projeto.
 
-## Agentes
+Ele também escolhe **quais** agentes fazem sentido. Uma API sem interface não ganha `frontend` nem `ux`; um projeto sem banco não ganha `dba`.
 
-| Agente | Função |
-|---|---|
-| `techlead` | Ponto de entrada. Entende a task, decompõe em subtasks atômicas e delega com contexto completo. Roda em Opus. |
-| `backend` | APIs, lógica de negócio, integrações server-side |
-| `frontend` | Componentes, estado, integração com API no cliente |
-| `dba` | Schema, migrations, otimização de queries |
-| `reviewer` | Gate de qualidade — correção, convenções, regressões |
-| `si` | Gate de segurança — OWASP, auth, permissões, dados sensíveis |
-| `qa` | Estratégia de testes, unitários, integração e E2E |
-| `devops` | Deploy, infra, variáveis de ambiente, CI/CD |
-| `dados` | Pipelines de dados, analytics, relatórios |
-| `ux` | Revisão de UX — fluxos, usabilidade, feedback ao usuário |
+## Passo a passo
 
-## Gates obrigatórios
+### 1. Clone o kit (uma vez por máquina)
 
-- Saída do `dba` → sempre revisada pelo `reviewer` antes de continuar
-- Mudanças em auth/permissões → `si` antes do `backend` executar
-- Subtasks que vão pra produção → `devops` define rollback antes de rodar
-- Critério de aceite crítico → `qa` cobre com testes antes de fechar
-
-## Como usar
-
-**Projeto novo:**
 ```bash
-# clone direto como .claude
-git clone https://github.com/WesleyDevFranco/agentes-wesley.git .claude
-
-# rode o bootstrap para gerar o contexto do projeto
-/bootstrap
-
-# comece a trabalhar
-/techlead "sua task aqui"
+git clone https://github.com/WesleyDevFranco/agentes-wesley.git ~/agentes-wesley
 ```
 
-**Atualizar todos os projetos depois de melhorar um agente:**
+O caminho pode ser qualquer um; os exemplos usam `~/agentes-wesley`.
+
+### 2. Abra o Claude Code na raiz do projeto
+
 ```bash
-# empurra a melhoria pra este repo
-git commit -m "melhora techlead"
-git push
-
-# em cada projeto que usa o ecossistema
-cd .claude && git pull
+cd ~/caminho/do/projeto
+claude --add-dir ~/agentes-wesley
 ```
 
-## Contexto do projeto
+O `--add-dir` libera a leitura dos templates. Sem ele, o Claude pede permissão quando for ler o kit; é só aceitar.
 
-O skill `/bootstrap` lê a estrutura do projeto, detecta a stack e gera um `CLAUDE.md` na raiz. Esse arquivo é carregado automaticamente pelo Claude Code, então todos os agentes recebem o contexto do projeto sem passos extras.
-
-Os agentes ficam genéricos. O `CLAUDE.md` é o que muda por projeto.
-
-## Estrutura
+### 3. Peça para rodar o gerador
 
 ```
-.claude/
-  agents/
-    techlead.md
-    backend.md
-    frontend.md
-    dba.md
-    reviewer.md
-    si.md
-    qa.md
-    devops.md
-    dados.md
-    ux.md
-  skills/
-    bootstrap.md
-CLAUDE.md
+Rode o gerador que está em ~/agentes-wesley/gerar-agentes.md
 ```
+
+O gerador:
+1. **Lê o projeto**: estrutura, stack de cada parte, comandos, testes, banco, auth, CI. Em monorepo, lê as partes em paralelo.
+2. **Pergunta** o que o código não responde (no máximo 6 perguntas): regras de negócio, o que é legado, se o agente pode commitar ou acessar banco, armadilhas conhecidas. Antes de rodar a suíte de testes para registrar falhas pré-existentes, pede sua autorização.
+3. **Mostra o plano**: quais agentes vai gerar e por quê, quais não vai, o que entra no `CLAUDE.md`, e o que ficou **A CONFIRMAR**.
+4. **Espera seu "ok"** e só então grava.
+5. **Verifica** o resultado e testa os guards.
+
+Se o projeto já tem um `.claude/` feito à mão, o gerador para e pergunta antes de sobrescrever qualquer coisa.
+
+O Claude Code pede aprovação para escrever ou sobrescrever arquivos dentro de `.claude/`. É esperado: aprove quando o gerador for gravar os agentes, o comando e os hooks.
+
+### 4. Depois de gerar
+
+- Confira os agentes com `/agents`. Se não aparecerem, abra uma nova sessão.
+- A pasta do projeto precisa estar marcada como **confiável** (o diálogo que o Claude Code mostra na primeira vez que abre a pasta). Sem isso, o Claude Code **ignora os guards dos agentes sem avisar**.
+- Revise o que **A CONFIRMAR** e ajuste à mão se precisar.
+- Commite `.claude/` e `CLAUDE.md` no projeto.
+
+### 5. Use no dia a dia
+
+```
+/techlead implementar filtro por data na listagem de pedidos
+```
+
+## O que é gerado no projeto
+
+```
+projeto/
+  CLAUDE.md                     ← curto, carregado em toda conversa: comandos, regras, estrutura, agentes
+  .claude/
+    commands/techlead.md        ← /techlead
+    agents/<agente>.md          ← só os que fazem sentido no projeto
+    hooks/*.js                  ← guards usados pelos agentes
+```
+
+| Agente | Função | Gerado quando | Pode escrever? |
+|---|---|---|---|
+| `/techlead` (comando) | Planeja em fatias, delega e pausa para aprovação | sempre | — |
+| `reviewer` | Revisa o diff: bugs, contrato, regressões. Máx. 10 itens com `arquivo:linha` | sempre | não (guard) |
+| `test-writer` | Escreve e roda testes só dos arquivos da fatia; bug no código é reportado, não corrigido | há framework de teste | só arquivos de teste (guard) |
+| `qa` | Estratégia de testes e validação contra critério de aceite | há testes e fluxos críticos | não (guard) |
+| `backend` | APIs, regra de negócio, integrações, jobs, scrapers | há código servidor | sim |
+| `frontend` | Telas, componentes, estado, integração com API | há interface | sim |
+| `ux` | Fluxos, estados de tela, microcopy, acessibilidade | há interface usada por pessoas | não |
+| `dba` | Schema, migrations, índices, queries | há banco com schema próprio | sim |
+| `si` | Auth, permissões, dados sensíveis, superfície exposta | há auth, dado sensível ou API exposta | não (guard) |
+| `devops` | Deploy, CI/CD, infra, variáveis de ambiente | há Docker, CI ou deploy | sim |
+| `dados` | Pipelines, ETL, lotes, relatórios | há processamento de dados | sim |
+
+Partes com o mesmo papel e stacks diferentes (ex.: API Node + legado PHP) ganham um agente cada: `backend-api`, `backend-legado`.
+
+## Como o `/techlead` trabalha
+
+```
+/techlead "task"
+   ↓
+lê o CLAUDE.md e o mapa do projeto (seção Neste projeto)
+planeja em fatias verticais (≤ ~5 arquivos de produção cada) → você aprova
+   ↓
+para cada fatia:
+  si (se toca auth) → backend / frontend / dba / ... → test-writer → reviewer (+ ux se tem tela)
+  resumo da fatia → você aprova → próxima fatia
+   ↓
+fechamento: arquivos, pendências, sugestão de mensagem de commit (quem commita é você)
+```
+
+Gates obrigatórios, quando os agentes existem no projeto:
+- Entrega do `dba` → `reviewer` antes de qualquer código que dependa do schema novo.
+- Mudança em auth/permissões → `si` antes de implementar.
+- Fatia que vai pra produção → `devops` define rollback antes.
+- Toda fatia → `test-writer` e `reviewer` antes de fechar.
+
+## Ensinar um agente
+
+Quando um agente errar algo específico do projeto, acrescente a regra na seção `## Neste projeto` dele (`.claude/agents/<agente>.md`, entre os marcadores `PROJETO:INICIO` e `PROJETO:FIM`). É assim que ele vai ficando melhor. Essa seção é preservada nas atualizações.
+
+Não edite o resto do arquivo no projeto: essa parte vem do template e é substituída quando você atualiza.
+
+## Atualizar os agentes de um projeto
+
+Quando o kit melhorar ou o projeto mudar (ganhou banco, trocou de stack):
+
+```bash
+cd ~/agentes-wesley && git pull
+```
+e, no projeto:
+```
+Rode o gerador que está em ~/agentes-wesley/gerar-agentes.md
+```
+
+Ele detecta que o projeto já tem agentes gerados e entra em **modo atualização**:
+- aplica o template novo;
+- **mantém intacta** a seção `Neste projeto` (inclusive o que você escreveu à mão);
+- propõe acréscimos como diff;
+- só grava com o seu ok.
+
+## Requisitos
+
+- **Claude Code.**
+- **Node.js no PATH** do projeto: os guards são scripts Node, sem dependências. Sem Node, os agentes funcionam, mas sem guards.
+- **Pasta do projeto confiável** no Claude Code, para os guards rodarem.
+
+## Estrutura deste repo
+
+```
+gerar-agentes.md        ← o gerador (você passa este caminho ao Claude)
+templates/
+  CLAUDE.md             ← modelo do CLAUDE.md da raiz do projeto
+  techlead.md           ← vira .claude/commands/techlead.md
+  agents/*.md           ← um template por agente
+  hooks/
+    guarda-somente-leitura.js   ← reviewer, si, qa: bloqueia escrita, git que muda estado, cliente de banco
+    guarda-test-writer.js       ← test-writer: só edita arquivo de teste, não roda a suíte inteira
+CLAUDE.md               ← instruções para manter este kit
+```
+
+## Mexer no kit
+
+Cada template tem frontmatter, corpo universal e a seção `## Neste projeto` com um `<!-- Preencher com: … -->` que diz ao gerador o que levantar. Detalhes da convenção e de como testar estão no `CLAUDE.md` deste repo. Depois de mudar, commite e dê `git push`; nos projetos, rode o gerador em modo atualização.
 
 ---
 
-# Agent Ecosystem for Claude Code
+# Agent generator kit for Claude Code
 
-A portable, git-versioned multi-agent development ecosystem built on top of [Claude Code](https://claude.ai/code). Drop it into any project and get a structured AI team — from planning to deploy — that you can update across all projects with a single `git pull`.
+A generator that creates a **Claude Code agent team tailored to each project**, from templates versioned here. You run the generator inside the project; it reads the code, understands the stack and writes agents that already carry that project's context: directories, commands, test patterns, pitfalls.
 
-## Motivation
+Generated agents live **inside the project** (`.claude/`), are versioned by the project's git and don't depend on this repo once created.
 
-I experimented with multi-agent setups at work and found that the biggest gains came from two things: a Tech Lead agent that writes tasks in enough detail for smaller models to execute without ambiguity, and mandatory review gates before moving between phases. This template formalizes that pattern into a portable structure.
+## Why generate instead of copying generic agents
 
-## How it works
+A generic agent reading a context file still thinks generically. Agents that work well have the project knowledge **written into them**. The generator combines:
 
-```
-You → /techlead "implement X"
-         ↓
-    reads CLAUDE.md (project context)
-    decomposes into subtasks
-    assigns agents + defines review gates
-         ↓
-    backend / frontend / dba / qa / devops / ...
-         ↓
-    reviewer / si (mandatory gates)
-         ↓
-    back to you: done or blocked with reason
-```
+- **Template (same everywhere):** workflow, gates, output format, reviewer rigor, permissions and guards.
+- **`Neste projeto` section (generated):** that project's stack, directories, commands, patterns and pitfalls.
 
-## Agents
+It also picks **which** agents make sense: an API with no UI gets no `frontend` or `ux`; a project with no database gets no `dba`.
 
-| Agent | Role |
-|---|---|
-| `techlead` | Entry point. Understands the task, decomposes it into atomic subtasks, delegates with full context. Runs on Opus. |
-| `backend` | APIs, business logic, server-side integrations |
-| `frontend` | Components, state management, client-side API integration |
-| `dba` | Schema design, migrations, query optimization |
-| `reviewer` | Quality gate — correctness, conventions, regressions |
-| `si` | Security gate — OWASP, auth, permissions, sensitive data |
-| `qa` | Test strategy, unit/integration/E2E tests |
-| `devops` | Deploy, infrastructure, environment variables, CI/CD |
-| `dados` | Data pipelines, analytics, reporting |
-| `ux` | UX review — flows, usability, user feedback |
+## Step by step
 
-## Mandatory gates
+1. **Clone the kit (once per machine):**
+   ```bash
+   git clone https://github.com/WesleyDevFranco/agentes-wesley.git ~/agentes-wesley
+   ```
+2. **Open Claude Code at the project root:**
+   ```bash
+   cd ~/path/to/project
+   claude --add-dir ~/agentes-wesley
+   ```
+   `--add-dir` lets it read the templates. Without it, Claude asks for permission when reading the kit; just accept.
+3. **Ask it to run the generator:**
+   ```
+   Rode o gerador que está em ~/agentes-wesley/gerar-agentes.md
+   ```
+   It works in five steps:
+   1. Reads the project.
+   2. Asks up to 6 questions the code can't answer.
+   3. Shows the plan: agents to generate and why, `CLAUDE.md` changes, items marked **A CONFIRMAR** (to confirm).
+   4. **Waits for your ok** before writing.
+   5. Verifies the result.
 
-- `dba` output → always reviewed by `reviewer` before proceeding
-- Auth / permissions changes → `si` before `backend` executes
-- Subtasks going to production → `devops` defines rollback before running
-- Critical acceptance criteria → `qa` covers with tests before closing
+   If the project already has a hand-made `.claude/`, it stops and asks before overwriting anything. Claude Code asks for approval to write inside `.claude/`; that's expected, approve it when the generator writes the files.
+4. **After generating:**
+   - Check `/agents`; open a new session if they don't show up.
+   - Make sure the project folder is **trusted** in Claude Code. Otherwise agent guards are **silently ignored**.
+   - Review the **A CONFIRMAR** items.
+   - Commit `.claude/` and `CLAUDE.md` in the project.
+5. **Daily use:** `/techlead <task>`. It plans in vertical slices, delegates to the agents and pauses for your approval after each slice.
 
-## Setup
+## Teaching an agent
 
-**New project:**
-```bash
-# clone directly as .claude
-git clone https://github.com/WesleyDevFranco/agentes-wesley.git .claude
+When an agent gets something project-specific wrong, add the rule to its `## Neste projeto` section (between the `PROJETO:INICIO` / `PROJETO:FIM` markers). That section is preserved on updates. Don't edit the rest of the file in the project: it comes from the template and is replaced on update.
 
-# run bootstrap to generate project context
-/bootstrap
+## Updating a project's agents
 
-# start working
-/techlead "your task here"
-```
+Run `git pull` in `~/agentes-wesley`, then run the generator again in the project. It detects the generated agents and switches to **update mode**:
+- applies the new templates;
+- keeps the `Neste projeto` sections intact, including your manual rules;
+- proposes additions as a diff;
+- writes only after your ok.
 
-**Update all projects after improving an agent:**
-```bash
-# push improvement to this repo
-git commit -m "improve techlead prompt"
-git push
+## Requirements
 
-# in each project that uses it
-cd .claude && git pull
-```
+- Claude Code.
+- Node.js on PATH (guards are dependency-free Node scripts).
+- A trusted project folder, so the guards run.
 
-## Project context
-
-The `/bootstrap` skill reads the project structure, detects the stack, and generates a `CLAUDE.md` at the project root. This file is auto-loaded by Claude Code, so every agent gets the project context without extra steps.
-
-The agents stay generic. The `CLAUDE.md` is what changes per project.
-
-## Structure
+## Repo structure
 
 ```
-.claude/
-  agents/
-    techlead.md
-    backend.md
-    frontend.md
-    dba.md
-    reviewer.md
-    si.md
-    qa.md
-    devops.md
-    dados.md
-    ux.md
-  skills/
-    bootstrap.md
-CLAUDE.md
+gerar-agentes.md        ← the generator (give this path to Claude)
+templates/
+  CLAUDE.md             ← template for the project's root CLAUDE.md
+  techlead.md           ← becomes .claude/commands/techlead.md
+  agents/*.md           ← one template per agent
+  hooks/*.js            ← guards (read-only agents, test-writer)
+CLAUDE.md               ← instructions for maintaining this kit
 ```
