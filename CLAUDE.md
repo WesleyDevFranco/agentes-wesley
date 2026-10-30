@@ -6,6 +6,7 @@ Este repo **não é instalado** nos projetos. Ele guarda templates e um gerador 
 - `gerar-agentes.md` — o prompt do gerador (modos geração e atualização).
 - `templates/agents/*.md` — um template por agente.
 - `templates/techlead.md` — vira `.claude/commands/techlead.md` no projeto.
+- `templates/professor.md` — vira `.claude/commands/professor.md` no projeto.
 - `templates/hooks/*.js` — guards copiados sem alteração para `.claude/hooks/` do projeto.
 - `templates/CLAUDE.md` — modelo do `CLAUDE.md` da raiz do projeto.
 

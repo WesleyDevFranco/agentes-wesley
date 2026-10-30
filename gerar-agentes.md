@@ -7,6 +7,7 @@ Você vai gerar um time de agentes do Claude Code **específico para o projeto a
 - **KIT** = a pasta onde está este arquivo (o usuário te passou o caminho). Os templates ficam em `KIT/templates/`:
   - `agents/*.md` — um template por agente
   - `techlead.md` — o comando `/techlead`
+  - `professor.md` — o comando `/professor`
   - `hooks/*.js` — guards que impedem agentes somente leitura de escrever e o test-writer de mexer em código de produção
   - `CLAUDE.md` — modelo do `CLAUDE.md` da raiz do projeto
 - **PROJETO** = o diretório de trabalho atual. Destinos:
@@ -68,6 +69,7 @@ Se o usuário pedir para não perguntar, assuma o mais conservador e marque como
 | Agente | Gere quando |
 |---|---|
 | `techlead` (command) | sempre |
+| `professor` (command) | sempre |
 | `reviewer` | sempre |
 | `test-writer` | o projeto tem framework de teste, ou o usuário quer começar a ter |
 | `qa` | há testes e o sistema tem fluxos críticos ou mais de uma parte |
@@ -109,9 +111,10 @@ Termine com **"Aprova?"**. Só grave depois de um ok explícito.
    - Nunca copie valor de secret, token ou `.env`.
    - Texto em pt-BR; nomes de código como estão no projeto.
 2. **`techlead`**: mesmo processo. A seção **Neste projeto** dele é o mapa que ele usa para delegar: partes → agente responsável, agentes que não existem e quem cobre, gates específicos. Grave em `PROJETO/.claude/commands/techlead.md`.
-3. **Hooks**: copie `KIT/templates/hooks/*.js` para `PROJETO/.claude/hooks/` sem alterar e rode `chmod +x`. Só copie os hooks que algum agente gerado usa (veja o `hooks:` no frontmatter).
-4. **`CLAUDE.md` da raiz**: a partir de `KIT/templates/CLAUDE.md`, trocando todos os colchetes por conteúdo real. Se já existir, preserve o que está lá e só acrescente ou ajuste o que foi aprovado na etapa 4.
-5. Não toque em `.claude/settings.json` nem em `.claude/settings.local.json` do projeto.
+3. **`professor`**: mesmo processo. A seção **Neste projeto** é o contexto de stack para o professor dar exemplos concretos: linguagens, frameworks, padrões recorrentes, libs principais e o que cada uma faz neste projeto. Grave em `PROJETO/.claude/commands/professor.md`.
+4. **Hooks**: copie `KIT/templates/hooks/*.js` para `PROJETO/.claude/hooks/` sem alterar e rode `chmod +x`. Só copie os hooks que algum agente gerado usa (veja o `hooks:` no frontmatter).
+5. **`CLAUDE.md` da raiz**: a partir de `KIT/templates/CLAUDE.md`, trocando todos os colchetes por conteúdo real. Se já existir, preserve o que está lá e só acrescente ou ajuste o que foi aprovado na etapa 4.
+6. Não toque em `.claude/settings.json` nem em `.claude/settings.local.json` do projeto.
 
 ## Etapa 6 — Verificar e entregar
 
@@ -130,7 +133,8 @@ Termine com **"Aprova?"**. Só grave depois de um ok explícito.
      2. A pasta do projeto precisa ser **confiável** (diálogo de confiança aceito), senão o Claude Code ignora os hooks dos agentes, sem avisar.
      3. Revise e commite `.claude/` e `CLAUDE.md` no projeto. Você não commita.
      4. Use `/techlead <task>`.
-     5. Quando um agente errar algo específico do projeto, acrescente a regra na seção **Neste projeto** dele. É assim que ele melhora.
+     5. Quando quiser aprender o que o techlead planejou antes de implementar, use `/professor <plano>`.
+     6. Quando um agente errar algo específico do projeto, acrescente a regra na seção **Neste projeto** dele. É assim que ele melhora.
 
 ## Atualização (projeto que já tem agentes gerados)
 
